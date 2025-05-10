@@ -724,29 +724,28 @@ export const updateUserSettings = async (
     const userId = sessionData.session.user.id;
     console.log("updateUserSettings: Updating settings for auth_id:", userId);
     
-    // First get the current user data including settings
-    const { data: user, error: fetchError } = await supabase
+    // Get the current user by auth_id to get their database ID
+    const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('settings')
+      .select('id')
       .eq('auth_id', userId)
-      .maybeSingle();
+      .single();
     
-    if (fetchError) {
-      console.error("Error fetching user settings:", fetchError);
-      throw fetchError;
+    if (userError) {
+      console.error("Error fetching user ID:", userError);
+      throw userError;
     }
     
-    // Merge with existing settings
-    const currentSettings = user?.settings || {};
-    const updatedSettings = { ...currentSettings, ...settings };
+    if (!userData) {
+      throw new Error("User not found");
+    }
     
-    console.log("Updating settings with:", updatedSettings);
-    
-    // Update the settings in the database
+    // Update the settings directly in the database
+    // No need to fetch current settings first since we're using JSONB
     const { error } = await supabase
       .from('users')
       .update({ 
-        settings: updatedSettings,
+        settings: settings,
         updated_at: new Date().toISOString()
       })
       .eq('auth_id', userId);

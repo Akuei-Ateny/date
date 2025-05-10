@@ -1,4 +1,3 @@
-
 export type UserGender = 'male' | 'female' | 'non-binary' | 'other';
 export type GenderPreference = 'male' | 'female' | 'everyone';
 export type UserVibe = 'Looking to Party' | 'Looking to Catch Up' | 'Down to Roam' | 'Looking for a Hook-Up' | '🌙 Let\'s Just See Where the Night Takes Us' | '💑 Looking for Something Deeper';
@@ -24,7 +23,19 @@ export interface User {
   profile_complete?: boolean;
   created_at?: string;
   updated_at?: string;
-  settings?: Record<string, any>;
+  settings?: {
+    notifications?: boolean;
+    messageNotifications?: boolean;
+    locationEnabled?: boolean;
+    showActive?: boolean;
+    darkMode?: boolean;
+    matchAlert?: boolean;
+    vibration?: boolean;
+    soundEffects?: boolean;
+    language?: string;
+    dataUsage?: string;
+    [key: string]: any;
+  };
 }
 
 export interface Interest {
