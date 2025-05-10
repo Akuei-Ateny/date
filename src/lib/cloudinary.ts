@@ -3,7 +3,7 @@
 // instead of using the Node.js SDK which requires 'fs'
 
 // Updated to use the correct preset name and folder
-const CLOUDINARY_PRESET = 'ml_default'; // Using default unsigned preset
+const CLOUDINARY_PRESET = 'unsigned_preset';
 const CLOUDINARY_CLOUD_NAME = 'dmm2mff5r';
 
 export const uploadToCloudinary = async (file: File): Promise<string> => {
