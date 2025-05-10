@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { UserGender, GenderPreference, UserWithRelations } from '@/types/database';
 
@@ -317,7 +316,7 @@ export const recordSwipe = async (
       .from('users')
       .select('id')
       .eq('auth_id', userId)
-      .maybeSingle(); // Use maybeSingle instead of single to avoid 406 error
+      .single();
     
     if (swiperError || !swiperData) {
       console.error('Error getting swiper ID:', swiperError || 'User not found');
@@ -328,7 +327,7 @@ export const recordSwipe = async (
       .from('users')
       .select('id')
       .eq('auth_id', swipedUserId)
-      .maybeSingle(); // Use maybeSingle instead of single to avoid 406 error
+      .single();
     
     if (swipedError || !swipedData) {
       console.error('Error getting swiped ID:', swipedError || 'User not found');
@@ -349,8 +348,7 @@ export const recordSwipe = async (
       .insert({
         swiper_id: swiperId,
         swiped_id: swipedId,
-        direction: liked ? 'right' : 'left',
-        created_at: new Date().toISOString()
+        direction: liked ? 'right' : 'left'
       });
     
     if (error) {
@@ -360,43 +358,46 @@ export const recordSwipe = async (
     
     // If liked, check if there's a mutual like (a match)
     if (liked) {
+      console.log("Checking for mutual like...");
       const { data, error: matchError } = await supabase
         .from('swipes')
         .select('*')
         .eq('swiper_id', swipedId)
         .eq('swiped_id', swiperId)
         .eq('direction', 'right')
-        .maybeSingle(); // Use maybeSingle instead of single
+        .single();
       
       if (matchError) {
-        console.error('Error checking for match:', matchError);
+        if (matchError.code !== 'PGRST116') { // Not found error is expected if no match
+          console.error('Error checking for match:', matchError);
+        }
         return false;
       }
       
       if (data) {
-        console.log('Found a match!');
-        // It's a match! Create a new chat
-        const { error: chatError } = await supabase
+        console.log('Found a match!', data);
+        // It's a match! Create a new match record
+        
+        // Ensure we follow the constraint where user_id_1 < user_id_2
+        const { error: matchRecordError } = await supabase
           .from('matches')
           .insert({
             user_id_1: swiperId < swipedId ? swiperId : swipedId,
-            user_id_2: swiperId < swipedId ? swipedId : swiperId,
-            created_at: new Date().toISOString()
+            user_id_2: swiperId < swipedId ? swipedId : swiperId
           });
         
-        if (chatError) {
-          console.error('Error creating match:', chatError);
+        if (matchRecordError) {
+          console.error('Error creating match record:', matchRecordError);
           return false;
         }
         
-        return true;
+        return true; // Return true to indicate it's a match
       }
     }
     
-    return false;
+    return false; // No match
   } catch (error) {
     console.error('Error recording swipe:', error);
-    // Return false instead of throwing to prevent UI disruption
     return false;
   }
 };
@@ -487,74 +488,35 @@ export const getUserLikers = async (): Promise<UserWithRelations[]> => {
     
     const userId = userData.user.id;
     
-    // First get the user's database ID from auth_id
-    const { data: userInfo, error: userIdError } = await supabase
+    // Get the user's database ID from auth_id
+    const { data: currentUser, error: userError } = await supabase
       .from('users')
       .select('id')
       .eq('auth_id', userId)
-      .maybeSingle(); // Use maybeSingle instead of single
+      .single();
     
-    if (userIdError || !userInfo) {
-      console.error("Error getting user database ID:", userIdError || "User not found");
+    if (userError || !currentUser) {
+      console.error("Error getting user ID:", userError);
+      return [];
+    }
+
+    console.log("Fetching admirers for user ID:", currentUser.id);
+    
+    // Use a direct SQL query to get admirers
+    // This fetches users who have swiped right on current user but current user hasn't swiped on them
+    const { data: admirers, error: admirersError } = await supabase.rpc('get_user_admirers', {
+      current_user_id: currentUser.id
+    });
+    
+    if (admirersError) {
+      console.error("Error getting admirers:", admirersError);
       return [];
     }
     
-    const dbUserId = userInfo.id;
-    
-    // Get users who have swiped right on the current user
-    const { data: likersData, error: likersError } = await supabase
-      .from('swipes')
-      .select('swiper_id')
-      .eq('swiped_id', dbUserId)
-      .eq('direction', 'right');
-    
-    if (likersError) {
-      console.error("Error getting likers:", likersError);
-      return [];
-    }
-    
-    if (!likersData || likersData.length === 0) {
-      return [];
-    }
-    
-    // Get users who the current user hasn't swiped on yet
-    const { data: swipedData, error: swipedError } = await supabase
-      .from('swipes')
-      .select('swiped_id')
-      .eq('swiper_id', dbUserId);
-    
-    let swipedIds: number[] = [];
-    
-    if (!swipedError && swipedData) {
-      swipedIds = swipedData.map(item => item.swiped_id);
-    }
-    
-    // Get the user details for likers who haven't been swiped on yet
-    const likerIds = likersData.map(item => item.swiper_id)
-      .filter(id => !swipedIds.includes(id));
-    
-    if (likerIds.length === 0) {
-      return [];
-    }
-    
-    // Get user details for likers
-    const { data: likers, error: usersError } = await supabase
-      .from('users')
-      .select(`
-        *,
-        interests:user_interests(name:interests(*)),
-        clubs:user_clubs(name:clubs(*))
-      `)
-      .in('id', likerIds);
-    
-    if (usersError) {
-      console.error("Error getting liker details:", usersError);
-      return [];
-    }
-    
-    return likers as UserWithRelations[] || [];
+    console.log(`Found ${admirers?.length || 0} admirers`);
+    return admirers as UserWithRelations[] || [];
   } catch (error) {
-    console.error('Error getting user likers:', error);
+    console.error('Error getting user admirers:', error);
     return [];
   }
 };

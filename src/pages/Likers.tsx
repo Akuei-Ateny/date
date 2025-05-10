@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Heart, X, ArrowLeft, User, Eye } from 'lucide-react';
@@ -35,7 +35,8 @@ const LikersPage: React.FC = () => {
     mutationFn: ({ userId, direction }: { userId: string, direction: 'left' | 'right' }) => 
       recordSwipe(userId, direction),
     onSuccess: (isMatch, variables) => {
-      if (isMatch) {
+      // If it's a right swipe (like back) and it resulted in a match
+      if (isMatch && variables.direction === 'right') {
         toast.success("It's a match! 🎉", {
           action: {
             label: "View Matches",
@@ -61,6 +62,7 @@ const LikersPage: React.FC = () => {
   });
   
   const handleSwipe = (userId: string, direction: 'left' | 'right') => {
+    console.log(`Swiping ${direction} on user ${userId}`);
     swipeMutation.mutate({ userId, direction });
   };
 
@@ -172,7 +174,7 @@ const LikersPage: React.FC = () => {
         
         <div className="space-y-6">
           {likers.map((user: UserWithRelations) => (
-            <Card key={user.auth_id} className="bg-secondary border-none overflow-hidden">
+            <Card key={user.id} className="bg-secondary border-none overflow-hidden">
               <CardHeader className="p-0">
                 <Carousel>
                   <CarouselContent>
