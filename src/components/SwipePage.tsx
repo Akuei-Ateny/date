@@ -10,7 +10,7 @@ import { UserWithRelations } from '@/types/database';
 import ProfileCompletionNotification from './ProfileCompletionNotification';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge'; // Add this import
+import { Badge } from '@/components/ui/badge';
 
 // Define a proper type for PotentialMatch that satisfies UserWithRelations
 interface PotentialMatch {
@@ -326,8 +326,8 @@ const SwipePage: React.FC = () => {
     }
   };
 
-  // Navigate to likers page
-  const navigateToLikers = () => {
+  // Navigate to admirers page
+  const navigateToAdmirers = () => {
     navigate('/likers');
   };
 
@@ -345,7 +345,7 @@ const SwipePage: React.FC = () => {
               className="border-princeton-orange text-princeton-orange hover:bg-princeton-orange/10"
               disabled
             >
-              See Who Likes You
+              My Admirers
             </Button>
           </div>
           <div className="flex-1 relative">
@@ -389,14 +389,14 @@ const SwipePage: React.FC = () => {
           <ProfileCompletionNotification />
         </div>
         
-        {/* Likers Button */}
+        {/* Admirers Button */}
         <div className="flex justify-end mb-4">
           <Button 
             variant="outline" 
             className="border-princeton-orange text-princeton-orange hover:bg-princeton-orange/10"
-            onClick={navigateToLikers}
+            onClick={navigateToAdmirers}
           >
-            See Who Likes You
+            My Admirers
           </Button>
         </div>
         

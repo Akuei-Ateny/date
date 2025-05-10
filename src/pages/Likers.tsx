@@ -52,7 +52,7 @@ const LikersPage: React.FC = () => {
       setDialogOpen(false);
       setSelectedUser(null);
       
-      // Invalidate and refetch likers query
+      // Invalidate and refetch likers query to update the list
       queryClient.invalidateQueries({ queryKey: ['likers'] });
     },
     onError: () => {
@@ -82,7 +82,7 @@ const LikersPage: React.FC = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <h1 className="text-2xl font-bold text-princeton-white mb-6">People Who Like You</h1>
+          <h1 className="text-2xl font-bold text-princeton-white mb-6">My Admirers</h1>
           <div className="flex-1 flex items-center justify-center">
             <div className="animate-pulse text-princeton-white">Loading your admirers...</div>
           </div>
@@ -104,7 +104,7 @@ const LikersPage: React.FC = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <h1 className="text-2xl font-bold text-princeton-white mb-6">People Who Like You</h1>
+          <h1 className="text-2xl font-bold text-princeton-white mb-6">My Admirers</h1>
           <div className="flex-1 flex items-center justify-center">
             <div className="text-princeton-white">Error loading admirers</div>
             <Button 
@@ -133,7 +133,7 @@ const LikersPage: React.FC = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <h1 className="text-2xl font-bold text-princeton-white mb-6">People Who Like You</h1>
+          <h1 className="text-2xl font-bold text-princeton-white mb-6">My Admirers</h1>
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <div className="text-5xl mb-4">😢</div>
             <h2 className="text-xl font-semibold text-princeton-white mb-2">No one has liked you yet</h2>
@@ -164,7 +164,7 @@ const LikersPage: React.FC = () => {
         </Button>
         
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-princeton-white">People Who Like You</h1>
+          <h1 className="text-2xl font-bold text-princeton-white">My Admirers</h1>
           <Badge variant="outline" className="bg-purple-500/20 text-purple-300 border-purple-400">
             {likers.length} {likers.length === 1 ? 'person' : 'people'}
           </Badge>
@@ -212,7 +212,7 @@ const LikersPage: React.FC = () => {
                     <h2 className="text-xl font-bold text-princeton-white">{user.name}, {user.class_year}</h2>
                     {user.major && <p className="text-princeton-orange">{user.major}</p>}
                   </div>
-                  <div className="flex items-center">
+                  <div className="flex items-center bg-pink-500/20 px-2 py-1 rounded-full">
                     <Heart className="text-pink-500 fill-pink-500 mr-1" size={16} />
                     <span className="text-xs text-pink-300">Likes you</span>
                   </div>
