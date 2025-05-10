@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Heart, X, ArrowLeft, User } from 'lucide-react';
+import { Heart, X, ArrowLeft, User, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { getUserLikers, recordSwipe } from '@/lib/api';
 import { UserWithRelations } from '@/types/database';
@@ -10,10 +10,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const LikersPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [selectedUser, setSelectedUser] = useState<UserWithRelations | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: likers, isLoading, isError, refetch } = useQuery({
     queryKey: ['likers'],
@@ -38,6 +48,10 @@ const LikersPage: React.FC = () => {
         toast.info("You passed on this user");
       }
       
+      // Close dialog if open
+      setDialogOpen(false);
+      setSelectedUser(null);
+      
       // Invalidate and refetch likers query
       queryClient.invalidateQueries({ queryKey: ['likers'] });
     },
@@ -48,6 +62,11 @@ const LikersPage: React.FC = () => {
   
   const handleSwipe = (userId: string, direction: 'left' | 'right') => {
     swipeMutation.mutate({ userId, direction });
+  };
+
+  const handleViewProfile = (user: UserWithRelations) => {
+    setSelectedUser(user);
+    setDialogOpen(true);
   };
 
   // Loading state
@@ -236,24 +255,155 @@ const LikersPage: React.FC = () => {
               
               <CardFooter className="p-4 pt-0 flex justify-between gap-4">
                 <Button 
-                  className="w-1/2 bg-red-500 hover:bg-red-600"
+                  className="w-1/3 bg-red-500 hover:bg-red-600"
                   onClick={() => handleSwipe(user.auth_id, 'left')}
                 >
                   <X className="mr-2 h-4 w-4" />
                   Pass
                 </Button>
                 <Button 
-                  className="w-1/2 bg-green-500 hover:bg-green-600"
+                  className="w-1/3 bg-blue-500 hover:bg-blue-600"
+                  onClick={() => handleViewProfile(user)}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  View
+                </Button>
+                <Button 
+                  className="w-1/3 bg-green-500 hover:bg-green-600"
                   onClick={() => handleSwipe(user.auth_id, 'right')}
                 >
                   <Heart className="mr-2 h-4 w-4" />
-                  Like Back
+                  Like
                 </Button>
               </CardFooter>
             </Card>
           ))}
         </div>
       </div>
+      
+      {/* Profile View Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] p-0 bg-gradient-to-b from-black to-[#121212]">
+          {selectedUser && (
+            <ScrollArea className="max-h-[90vh]">
+              <DialogHeader className="pt-6 px-6">
+                <DialogTitle className="text-xl font-bold text-princeton-white">{selectedUser.name}'s Profile</DialogTitle>
+                <DialogDescription className="text-princeton-orange">
+                  {selectedUser.class_year} • {selectedUser.major || "Major not specified"}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="p-6 pt-2">
+                {/* Photos */}
+                {selectedUser.photo_urls && selectedUser.photo_urls.length > 0 && (
+                  <div className="mb-6">
+                    <Carousel>
+                      <CarouselContent>
+                        {selectedUser.photo_urls.map((photoUrl, index) => (
+                          <CarouselItem key={index}>
+                            <div className="aspect-square rounded-lg overflow-hidden">
+                              <img
+                                src={photoUrl}
+                                alt={`${selectedUser.name}'s photo ${index + 1}`}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            </div>
+                          </CarouselItem>
+                        ))}
+                      </CarouselContent>
+                      {selectedUser.photo_urls.length > 1 && (
+                        <>
+                          <CarouselPrevious />
+                          <CarouselNext />
+                        </>
+                      )}
+                    </Carousel>
+                  </div>
+                )}
+                
+                {/* Bio */}
+                {selectedUser.bio && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-princeton-white/70 mb-2">About</h3>
+                    <p className="text-sm text-princeton-white">{selectedUser.bio}</p>
+                  </div>
+                )}
+                
+                {/* Intention */}
+                {selectedUser.intention && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-princeton-white/70 mb-2">Intention</h3>
+                    <Badge className={selectedUser.intention === 'casual' ? 
+                      "bg-blue-500/20 text-blue-300" : 
+                      "bg-pink-500/20 text-pink-300"}>
+                      {selectedUser.intention === 'casual' ? "Looking for something casual" : "Looking for something serious"}
+                    </Badge>
+                  </div>
+                )}
+                
+                {/* Interests */}
+                {selectedUser.interests && selectedUser.interests.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-princeton-white/70 mb-2">Interests</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedUser.interests.map((interest: any, index: number) => {
+                        const interestName = typeof interest === 'string' 
+                          ? interest 
+                          : interest?.name?.name || interest?.name || '';
+                        
+                        return interestName ? (
+                          <Badge key={index} variant="outline" className="bg-princeton-orange/10 border-princeton-orange/30 text-princeton-orange">
+                            {interestName}
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Clubs */}
+                {selectedUser.clubs && selectedUser.clubs.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-princeton-white/70 mb-2">Clubs</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedUser.clubs.map((club: any, index: number) => {
+                        const clubName = typeof club === 'string' 
+                          ? club 
+                          : club?.name?.name || club?.name || '';
+                        
+                        return clubName ? (
+                          <Badge key={index} variant="outline" className="border-princeton-white/30 text-princeton-white/90">
+                            {clubName}
+                          </Badge>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Swipe Buttons */}
+                <div className="flex gap-4 mt-8">
+                  <Button 
+                    className="w-1/2 bg-red-500 hover:bg-red-600"
+                    onClick={() => handleSwipe(selectedUser.auth_id, 'left')}
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Pass
+                  </Button>
+                  <Button 
+                    className="w-1/2 bg-green-500 hover:bg-green-600"
+                    onClick={() => handleSwipe(selectedUser.auth_id, 'right')}
+                  >
+                    <Heart className="mr-2 h-4 w-4" />
+                    Like Back
+                  </Button>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
