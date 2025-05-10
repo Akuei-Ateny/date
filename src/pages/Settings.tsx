@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -36,6 +35,8 @@ const Settings: React.FC = () => {
   const [soundEffects, setSoundEffects] = useState(true);
   const [language, setLanguage] = useState('english');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Determine where the back button should go
   const handleBack = () => {
@@ -52,6 +53,11 @@ const Settings: React.FC = () => {
   const handleSettingChange = async (setting: string, value: boolean | string) => {
     try {
       setIsLoading(true);
+      setErrorMessage(null);
+      setIsSubmitting(true);
+      
+      console.log(`Updating setting: ${setting} to value:`, value);
+      
       // Update local state
       switch (setting) {
         case 'notifications':
@@ -90,12 +96,14 @@ const Settings: React.FC = () => {
       
       // Call API to update user settings
       await updateUserSettings({ [setting]: value });
-      toast.success('Settings updated successfully');
-    } catch (error) {
+      toast.success(`${setting} updated successfully`);
+    } catch (error: any) {
       console.error('Error updating settings:', error);
+      setErrorMessage(error.message || 'Failed to update settings');
       toast.error('Failed to update settings');
     } finally {
       setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -129,18 +137,22 @@ const Settings: React.FC = () => {
 
   useEffect(() => {
     // In a real app, you would fetch user settings here
-    // For now, we'll just set some defaults
-    if (user) {
-      setNotifications(user.settings?.notifications ?? true);
-      setMessageNotifications(user.settings?.messageNotifications ?? true);
-      setLocationEnabled(user.settings?.locationEnabled ?? true);
-      setShowActive(user.settings?.showActive ?? true);
-      setDarkMode(user.settings?.darkMode ?? false);
-      setMatchAlert(user.settings?.matchAlert ?? true);
-      setVibration(user.settings?.vibration ?? true);
-      setSoundEffects(user.settings?.soundEffects ?? true);
-      setLanguage(user.settings?.language ?? 'english');
-      setDataUsage(user.settings?.dataUsage ?? 'auto');
+    if (user?.settings) {
+      try {
+        console.log("Loading user settings:", user.settings);
+        setNotifications(user.settings.notifications ?? true);
+        setMessageNotifications(user.settings.messageNotifications ?? true);
+        setLocationEnabled(user.settings.locationEnabled ?? true);
+        setShowActive(user.settings.showActive ?? true);
+        setDarkMode(user.settings.darkMode ?? false);
+        setMatchAlert(user.settings.matchAlert ?? true);
+        setVibration(user.settings.vibration ?? true);
+        setSoundEffects(user.settings.soundEffects ?? true);
+        setLanguage(user.settings.language ?? 'english');
+        setDataUsage(user.settings.dataUsage ?? 'auto');
+      } catch (error) {
+        console.error("Error loading settings:", error);
+      }
     }
   }, [user]);
 
@@ -162,6 +174,12 @@ const Settings: React.FC = () => {
       </header>
 
       <main className="flex-1 container mx-auto px-4 py-6 max-w-md">
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-white">
+            <p className="text-sm font-medium">{errorMessage}</p>
+          </div>
+        )}
+        
         <div className="space-y-6">
           {/* Profile Section */}
           <div className="bg-secondary/30 rounded-xl p-4 border border-white/5">
@@ -269,7 +287,7 @@ const Settings: React.FC = () => {
                     <Switch 
                       checked={notifications}
                       onCheckedChange={(value) => handleSettingChange('notifications', value)}
-                      disabled={isLoading}
+                      disabled={isSubmitting}
                       className="data-[state=checked]:bg-princeton-orange"
                     />
                   </div>
@@ -282,7 +300,7 @@ const Settings: React.FC = () => {
                     <Switch 
                       checked={messageNotifications}
                       onCheckedChange={(value) => handleSettingChange('messageNotifications', value)}
-                      disabled={isLoading}
+                      disabled={isSubmitting}
                       className="data-[state=checked]:bg-princeton-orange"
                     />
                   </div>
@@ -295,7 +313,7 @@ const Settings: React.FC = () => {
                     <Switch 
                       checked={matchAlert}
                       onCheckedChange={(value) => handleSettingChange('matchAlert', value)}
-                      disabled={isLoading}
+                      disabled={isSubmitting}
                       className="data-[state=checked]:bg-princeton-orange"
                     />
                   </div>
@@ -321,7 +339,7 @@ const Settings: React.FC = () => {
                     <Switch 
                       checked={locationEnabled}
                       onCheckedChange={(value) => handleSettingChange('locationEnabled', value)}
-                      disabled={isLoading}
+                      disabled={isSubmitting}
                       className="data-[state=checked]:bg-princeton-orange"
                     />
                   </div>
@@ -334,7 +352,7 @@ const Settings: React.FC = () => {
                     <Switch 
                       checked={showActive}
                       onCheckedChange={(value) => handleSettingChange('showActive', value)}
-                      disabled={isLoading}
+                      disabled={isSubmitting}
                       className="data-[state=checked]:bg-princeton-orange"
                     />
                   </div>
@@ -360,7 +378,7 @@ const Settings: React.FC = () => {
                     <Switch 
                       checked={darkMode}
                       onCheckedChange={(value) => handleSettingChange('darkMode', value)}
-                      disabled={isLoading}
+                      disabled={isSubmitting}
                       className="data-[state=checked]:bg-princeton-orange"
                     />
                   </div>
@@ -386,7 +404,7 @@ const Settings: React.FC = () => {
                     <Switch 
                       checked={vibration}
                       onCheckedChange={(value) => handleSettingChange('vibration', value)}
-                      disabled={isLoading}
+                      disabled={isSubmitting}
                       className="data-[state=checked]:bg-princeton-orange"
                     />
                   </div>
@@ -399,7 +417,7 @@ const Settings: React.FC = () => {
                     <Switch 
                       checked={soundEffects}
                       onCheckedChange={(value) => handleSettingChange('soundEffects', value)}
-                      disabled={isLoading}
+                      disabled={isSubmitting}
                       className="data-[state=checked]:bg-princeton-orange"
                     />
                   </div>

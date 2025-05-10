@@ -1,12 +1,25 @@
 
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge'; // Add this import
 import UserProfile from '@/pages/UserProfile';
+import { getCurrentUser } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 
 const Profile = () => {
   const { id } = useParams();
-  return <UserProfile viewUserId={id} />;
+  
+  // If no ID is provided, we'll use the current user's ID
+  const { data: currentUser } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: getCurrentUser,
+    enabled: !id, // Only fetch if no ID is provided
+  });
+  
+  // If id is not provided, use the current user's ID from the API response
+  const viewUserId = id || (currentUser ? currentUser.auth_id : undefined);
+  
+  // Only render UserProfile if we have a user ID (either from URL or current user)
+  return viewUserId ? <UserProfile viewUserId={viewUserId} /> : null;
 };
 
 export default Profile;

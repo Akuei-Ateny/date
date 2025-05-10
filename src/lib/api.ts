@@ -708,36 +708,55 @@ export const updateUserSettings = async (
     locationEnabled?: boolean;
     showActive?: boolean;
     darkMode?: boolean;
+    matchAlert?: boolean;
+    vibration?: boolean;
+    soundEffects?: boolean;
+    language?: string;
+    dataUsage?: string;
     [key: string]: any;
   }
 ): Promise<void> => {
   try {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) throw new Error("No authenticated user");
+    // Get the current user's session
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session?.user) throw new Error("No authenticated user");
     
-    const userId = userData.user.id;
+    const userId = sessionData.session.user.id;
+    console.log("updateUserSettings: Updating settings for auth_id:", userId);
     
-    // First get the current settings
+    // First get the current user data including settings
     const { data: user, error: fetchError } = await supabase
       .from('users')
       .select('settings')
       .eq('auth_id', userId)
-      .single();
+      .maybeSingle();
     
-    if (fetchError) throw fetchError;
+    if (fetchError) {
+      console.error("Error fetching user settings:", fetchError);
+      throw fetchError;
+    }
     
     // Merge with existing settings
     const currentSettings = user?.settings || {};
     const updatedSettings = { ...currentSettings, ...settings };
     
+    console.log("Updating settings with:", updatedSettings);
+    
     // Update the settings in the database
     const { error } = await supabase
       .from('users')
-      .update({ settings: updatedSettings })
+      .update({ 
+        settings: updatedSettings,
+        updated_at: new Date().toISOString()
+      })
       .eq('auth_id', userId);
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error updating settings in database:", error);
+      throw error;
+    }
     
+    console.log("Settings updated successfully");
     return;
   } catch (error) {
     console.error('Error updating settings:', error);
