@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getCurrentUser, getUserById, updateUserProfile, uploadUserPhoto, deleteUserPhoto, updateUserInterests } from '../lib/api';
-import { ArrowLeft, Camera, Trash2, Plus, Loader2 } from 'lucide-react';
+import { ArrowLeft, Camera, Trash2, Settings, Edit, Save, X, Heart, Calendar, School, MapPin, Sparkles, BookOpen } from 'lucide-react';
 import Logo from '../components/Logo';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,6 +29,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   
   // Form state
   const [name, setName] = useState('');
@@ -37,7 +40,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
   const [gender, setGender] = useState<string>('');
   const [genderPreference, setGenderPreference] = useState<string>('');
   const [vibe, setVibe] = useState<string>('');
-  const [intention, setIntention] = useState<string>('casual'); // Add intention state
+  const [intention, setIntention] = useState<string>('casual');
   const [photos, setPhotos] = useState<string[]>([]);
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   
@@ -62,7 +65,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
       setGender(user.gender || '');
       setGenderPreference(user.gender_preference || '');
       setVibe(user.vibe || '');
-      setIntention(user.intention || 'casual'); // Set intention from user data
+      setIntention(user.intention || 'casual');
       setPhotos(user.photo_urls || []);
       
       // Extract interest IDs from the nested structure
@@ -83,6 +86,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
       toast.success('Profile updated successfully');
+      setIsEditMode(false);
     },
     onError: (error: any) => {
       toast.error(`Failed to update profile: ${error.message}`);
@@ -113,7 +117,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
       gender,
       gender_preference: genderPreference,
       vibe,
-      intention, // Include intention in profile data
+      intention,
       profile_complete: true
     };
     
@@ -173,8 +177,21 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
     }
   };
   
-  // Viewing another user's profile
+  // Viewing another user's profile or own profile
   const isViewingOtherUser = !!viewUserId;
+  
+  // Switch between photos in view mode
+  const nextPhoto = () => {
+    if (photos.length > 1) {
+      setActivePhotoIndex((prev) => (prev + 1) % photos.length);
+    }
+  };
+  
+  const prevPhoto = () => {
+    if (photos.length > 1) {
+      setActivePhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+    }
+  };
   
   if (isLoading) {
     return (
@@ -190,11 +207,14 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
         </header>
         
         <main className="container mx-auto px-4 py-6 max-w-2xl">
-          <h1 className="text-2xl font-bold text-princeton-white mb-6">{isViewingOtherUser ? 'Profile' : 'Your Profile'}</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-princeton-white">{isViewingOtherUser ? 'Profile' : 'Your Profile'}</h1>
+            <Skeleton className="h-10 w-24" />
+          </div>
           <div className="space-y-4">
+            <Skeleton className="h-80 w-full rounded-xl" />
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-12 w-full" />
             <Skeleton className="h-12 w-full" />
           </div>
         </main>
@@ -230,9 +250,8 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
     );
   }
   
-  // Display either view mode or edit mode based on whether we're viewing another user's profile
+  // View mode for other users' profiles
   if (isViewingOtherUser) {
-    // View only profile for other users
     return (
       <div className="min-h-screen bg-gradient-to-b from-black to-[#121212] p-4">
         <header className="container mx-auto px-4 py-4 flex items-center">
@@ -248,77 +267,110 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
         <main className="container mx-auto px-4 py-6 max-w-2xl">
           <h1 className="text-2xl font-bold text-princeton-white mb-6">{name}'s Profile</h1>
           
-          {/* Photos */}
+          {/* Photo Gallery with Navigation */}
           {photos && photos.length > 0 && (
-            <div className="mb-8">
-              <div className="aspect-[4/5] rounded-lg overflow-hidden mb-4">
+            <div className="mb-8 relative">
+              <div className="aspect-[4/5] rounded-2xl overflow-hidden mb-4 shadow-lg">
                 <img 
-                  src={photos[0]} 
+                  src={photos[activePhotoIndex]} 
                   alt={name} 
                   className="w-full h-full object-cover"
                 />
               </div>
               
               {photos.length > 1 && (
-                <div className="grid grid-cols-3 gap-2">
-                  {photos.slice(1).map((photo, index) => (
-                    <div key={index} className="aspect-square rounded-lg overflow-hidden">
-                      <img 
-                        src={photo} 
-                        alt={`${name} ${index + 2}`} 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                <div className="absolute top-1/2 left-0 right-0 flex justify-between px-4 -translate-y-1/2">
+                  <button onClick={prevPhoto} className="bg-black/30 hover:bg-black/50 p-2 rounded-full">
+                    <ArrowLeft size={24} className="text-white" />
+                  </button>
+                  <button onClick={nextPhoto} className="bg-black/30 hover:bg-black/50 p-2 rounded-full">
+                    <ArrowLeft size={24} className="text-white transform rotate-180" />
+                  </button>
+                </div>
+              )}
+              
+              {/* Photo indicators */}
+              {photos.length > 1 && (
+                <div className="flex justify-center gap-1 mt-2">
+                  {photos.map((_, index) => (
+                    <div 
+                      key={index} 
+                      className={`h-2 rounded-full transition-all ${
+                        index === activePhotoIndex ? 'w-6 bg-princeton-orange' : 'w-2 bg-gray-500'
+                      }`}
+                    />
                   ))}
                 </div>
               )}
             </div>
           )}
           
-          {/* Basic info */}
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-princeton-white mb-2">About</h2>
-            <div className="bg-secondary rounded-lg p-4 text-princeton-white">
-              <div className="mb-4">
-                <h3 className="text-sm text-princeton-white/60 mb-1">Name</h3>
-                <p>{name}</p>
+          {/* Basic info card with modern design */}
+          <div className="mb-8">
+            <div className="bg-secondary/80 backdrop-blur rounded-2xl p-6 text-princeton-white shadow-lg border border-white/10">
+              <div className="mb-6 flex items-center space-x-2">
+                <Heart size={20} className="text-princeton-orange" />
+                <h2 className="text-xl font-bold text-princeton-white">About {name}</h2>
               </div>
               
-              <div className="mb-4">
-                <h3 className="text-sm text-princeton-white/60 mb-1">Bio</h3>
-                <p>{bio || 'No bio provided'}</p>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="text-sm text-princeton-white/60 mb-1">Major</h3>
-                <p>{major || 'Not specified'}</p>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="text-sm text-princeton-white/60 mb-1">Class Year</h3>
-                <p>{classYear || 'Not specified'}</p>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="text-sm text-princeton-white/60 mb-1">Vibe</h3>
-                <p>{vibe || 'Not specified'}</p>
-              </div>
-              
-              <div className="mb-4">
-                <h3 className="text-sm text-princeton-white/60 mb-1">Intention</h3>
-                <p>{intention ? (intention === 'casual' ? 'Casual' : 'Serious') : 'Not specified'}</p>
+              <div className="space-y-6">
+                {/* Bio */}
+                <div className="bg-white/5 p-4 rounded-xl">
+                  <p className="text-princeton-white/90 italic">"{bio || 'No bio provided'}"</p>
+                </div>
+                
+                {/* Details grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-3">
+                    <School className="text-princeton-orange" size={18} />
+                    <div>
+                      <p className="text-xs text-princeton-white/60">Major</p>
+                      <p className="font-medium">{major || 'Not specified'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="text-princeton-orange" size={18} />
+                    <div>
+                      <p className="text-xs text-princeton-white/60">Class Year</p>
+                      <p className="font-medium">{classYear || 'Not specified'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <Sparkles className="text-princeton-orange" size={18} />
+                    <div>
+                      <p className="text-xs text-princeton-white/60">Vibe</p>
+                      <p className="font-medium">{vibe || 'Not specified'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <Heart className="text-princeton-orange" size={18} />
+                    <div>
+                      <p className="text-xs text-princeton-white/60">Intention</p>
+                      <p className="font-medium">
+                        {intention ? (intention === 'casual' ? 'Casual' : 'Serious') : 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           
           {/* Interests */}
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-princeton-white mb-2">Interests</h2>
-            <div className="bg-secondary rounded-lg p-4">
+          <div className="mb-8">
+            <div className="bg-secondary/80 backdrop-blur rounded-2xl p-6 text-princeton-white shadow-lg border border-white/10">
+              <div className="mb-4 flex items-center space-x-2">
+                <BookOpen size={20} className="text-princeton-orange" />
+                <h2 className="text-xl font-bold text-princeton-white">Interests</h2>
+              </div>
+              
               <div className="flex flex-wrap gap-2">
                 {user?.interests && user.interests.length > 0 ? (
                   user.interests.map((interest, index) => (
-                    <Badge key={index} className="bg-princeton-orange/70 text-black">
+                    <Badge key={index} className="bg-princeton-orange/70 text-black px-3 py-1 rounded-full">
                       {interest.name.name}
                     </Badge>
                   ))
@@ -331,12 +383,16 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
           
           {/* Clubs */}
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-princeton-white mb-2">Clubs</h2>
-            <div className="bg-secondary rounded-lg p-4">
+            <div className="bg-secondary/80 backdrop-blur rounded-2xl p-6 text-princeton-white shadow-lg border border-white/10">
+              <div className="mb-4 flex items-center space-x-2">
+                <MapPin size={20} className="text-princeton-orange" />
+                <h2 className="text-xl font-bold text-princeton-white">Clubs</h2>
+              </div>
+              
               <div className="flex flex-wrap gap-2">
                 {user?.clubs && user.clubs.length > 0 ? (
                   user.clubs.map((club, index) => (
-                    <Badge key={index} variant="outline" className="border-princeton-orange text-princeton-white">
+                    <Badge key={index} variant="outline" className="border-princeton-orange text-princeton-white px-3 py-1 rounded-full">
                       {club.name.name}
                     </Badge>
                   ))
@@ -351,6 +407,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
     );
   }
   
+  // Own profile - View/Edit mode toggle
   return (
     <div className="min-h-screen bg-gradient-to-b from-black to-[#121212] p-4">
       <header className="container mx-auto px-4 py-4 flex items-center">
@@ -364,193 +421,423 @@ const UserProfile: React.FC<UserProfileProps> = ({ viewUserId }) => {
       </header>
       
       <main className="container mx-auto px-4 py-6 max-w-2xl">
-        <h1 className="text-2xl font-bold text-princeton-white mb-6">Your Profile</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-princeton-white">Your Profile</h1>
+          
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/settings')}
+              className="border-princeton-orange/40 text-princeton-white"
+            >
+              <Settings size={18} className="mr-2" />
+              Settings
+            </Button>
+            
+            <Button
+              onClick={() => setIsEditMode(!isEditMode)}
+              className={isEditMode ? "bg-gray-600" : "bg-princeton-orange text-black"}
+            >
+              {isEditMode ? (
+                <>
+                  <X size={18} className="mr-2" />
+                  Cancel
+                </>
+              ) : (
+                <>
+                  <Edit size={18} className="mr-2" />
+                  Edit Profile
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-3 mb-6">
-            <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="photos">Photos</TabsTrigger>
-            <TabsTrigger value="interests">Interests</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="basic">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-princeton-white">Name</Label>
-                <Input 
-                  id="name" 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
-                  className="bg-secondary border-princeton-orange/30 text-princeton-white"
-                  placeholder="Your name"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="bio" className="text-princeton-white">Bio</Label>
-                <Textarea 
-                  id="bio" 
-                  value={bio} 
-                  onChange={(e) => setBio(e.target.value)} 
-                  className="bg-secondary border-princeton-orange/30 text-princeton-white min-h-[100px]"
-                  placeholder="Tell others about yourself"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="major" className="text-princeton-white">Major</Label>
-                <Input 
-                  id="major" 
-                  value={major} 
-                  onChange={(e) => setMajor(e.target.value)} 
-                  className="bg-secondary border-princeton-orange/30 text-princeton-white"
-                  placeholder="Your major"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-princeton-white">Gender</Label>
-                <RadioGroup value={gender} onValueChange={setGender} className="flex flex-col space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="male" id="male" />
-                    <Label htmlFor="male" className="text-princeton-white">Male</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="female" id="female" />
-                    <Label htmlFor="female" className="text-princeton-white">Female</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="non-binary" id="non-binary" />
-                    <Label htmlFor="non-binary" className="text-princeton-white">Non-binary</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="other" id="other" />
-                    <Label htmlFor="other" className="text-princeton-white">Other</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-princeton-white">Interested In</Label>
-                <RadioGroup value={genderPreference} onValueChange={setGenderPreference} className="flex flex-col space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="male" id="pref-male" />
-                    <Label htmlFor="pref-male" className="text-princeton-white">Men</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="female" id="pref-female" />
-                    <Label htmlFor="pref-female" className="text-princeton-white">Women</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="everyone" id="pref-everyone" />
-                    <Label htmlFor="pref-everyone" className="text-princeton-white">Everyone</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              {/* Add intention selection */}
-              <div className="space-y-2">
-                <Label className="text-princeton-white">Dating Intention</Label>
-                <RadioGroup value={intention} onValueChange={setIntention} className="flex flex-col space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="casual" id="casual" />
-                    <Label htmlFor="casual" className="text-princeton-white">Casual</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="serious" id="serious" />
-                    <Label htmlFor="serious" className="text-princeton-white">Serious</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full bg-princeton-orange hover:bg-princeton-orange/90 text-black"
-                disabled={updateProfileMutation.isPending}
-              >
-                {updateProfileMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : 'Save Changes'}
-              </Button>
-            </form>
-          </TabsContent>
-          
-          <TabsContent value="photos">
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                {photos.map((photo, index) => (
-                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
-                    <img 
-                      src={photo} 
-                      alt={`Profile photo ${index + 1}`} 
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      onClick={() => handleDeletePhoto(photo)}
-                      className="absolute top-2 right-2 bg-black/50 p-1 rounded-full text-white hover:bg-red-500/80"
-                    >
-                      <Trash2 size={16} />
+        {/* View Mode */}
+        {!isEditMode ? (
+          <div className="space-y-8 animate-fade-in">
+            {/* Photo Gallery with Navigation */}
+            {photos && photos.length > 0 ? (
+              <div className="relative">
+                <div className="aspect-[4/5] rounded-2xl overflow-hidden mb-4 shadow-lg">
+                  <img 
+                    src={photos[activePhotoIndex]} 
+                    alt={name} 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                
+                {photos.length > 1 && (
+                  <div className="absolute top-1/2 left-0 right-0 flex justify-between px-4 -translate-y-1/2">
+                    <button onClick={prevPhoto} className="bg-black/30 hover:bg-black/50 p-2 rounded-full">
+                      <ArrowLeft size={24} className="text-white" />
+                    </button>
+                    <button onClick={nextPhoto} className="bg-black/30 hover:bg-black/50 p-2 rounded-full">
+                      <ArrowLeft size={24} className="text-white transform rotate-180" />
                     </button>
                   </div>
-                ))}
+                )}
                 
-                {photos.length < 6 && (
-                  <label className="aspect-square rounded-lg border-2 border-dashed border-princeton-orange/50 flex flex-col items-center justify-center cursor-pointer hover:bg-princeton-orange/10 transition-colors">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={handlePhotoUpload}
-                      disabled={isUploading}
-                    />
-                    {isUploading ? (
-                      <Loader2 className="h-8 w-8 text-princeton-orange animate-spin" />
-                    ) : (
-                      <>
-                        <Camera size={32} className="text-princeton-orange mb-2" />
-                        <span className="text-sm text-princeton-orange">Add Photo</span>
-                      </>
-                    )}
-                  </label>
+                {/* Photo indicators */}
+                {photos.length > 1 && (
+                  <div className="flex justify-center gap-1 mt-2">
+                    {photos.map((_, index) => (
+                      <div 
+                        key={index} 
+                        className={`h-2 rounded-full transition-all ${
+                          index === activePhotoIndex ? 'w-6 bg-princeton-orange' : 'w-2 bg-gray-500'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+                
+                {/* Thumbnail gallery */}
+                {photos.length > 1 && (
+                  <div className="grid grid-cols-5 gap-2 mt-4">
+                    {photos.map((photo, index) => (
+                      <div 
+                        key={index}
+                        className={`aspect-square rounded-lg overflow-hidden cursor-pointer ${
+                          index === activePhotoIndex ? 'ring-2 ring-princeton-orange' : ''
+                        }`}
+                        onClick={() => setActivePhotoIndex(index)}
+                      >
+                        <img 
+                          src={photo}
+                          alt={`Photo ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
+            ) : (
+              <div className="aspect-[4/5] rounded-2xl border-2 border-dashed border-princeton-orange/40 flex flex-col items-center justify-center">
+                <Camera size={64} className="text-princeton-orange/40 mb-4" />
+                <p className="text-princeton-white/60">No photos added yet</p>
+              </div>
+            )}
+            
+            {/* Basic info card with modern design */}
+            <div className="bg-secondary/80 backdrop-blur rounded-2xl p-6 text-princeton-white shadow-lg border border-white/10">
+              <div className="mb-6 flex items-center space-x-2">
+                <Heart size={20} className="text-princeton-orange" />
+                <h2 className="text-xl font-bold text-princeton-white">About You</h2>
+              </div>
               
-              {uploadError && (
-                <div className="text-red-500 text-sm">{uploadError}</div>
-              )}
-              
-              <div className="text-sm text-princeton-white/70">
-                <p>Add up to 6 photos to show off your best self.</p>
-                <p>First photo will be your main profile picture.</p>
+              <div className="space-y-6">
+                {/* Bio */}
+                <div className="bg-white/5 p-4 rounded-xl">
+                  <p className="text-princeton-white/90 italic">"{bio || 'No bio provided'}"</p>
+                </div>
+                
+                {/* Details grid */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-3">
+                    <School className="text-princeton-orange" size={18} />
+                    <div>
+                      <p className="text-xs text-princeton-white/60">Major</p>
+                      <p className="font-medium">{major || 'Not specified'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="text-princeton-orange" size={18} />
+                    <div>
+                      <p className="text-xs text-princeton-white/60">Class Year</p>
+                      <p className="font-medium">{classYear || 'Not specified'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <Sparkles className="text-princeton-orange" size={18} />
+                    <div>
+                      <p className="text-xs text-princeton-white/60">Vibe</p>
+                      <p className="font-medium">{vibe || 'Not specified'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <Heart className="text-princeton-orange" size={18} />
+                    <div>
+                      <p className="text-xs text-princeton-white/60">Intention</p>
+                      <p className="font-medium">
+                        {intention ? (intention === 'casual' ? 'Casual' : 'Serious') : 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="interests">
-            <div className="space-y-6">
-              <InterestSelector 
-                selectedInterests={selectedInterests}
-                onChange={setSelectedInterests}
-              />
+            
+            {/* Interests */}
+            <div className="bg-secondary/80 backdrop-blur rounded-2xl p-6 text-princeton-white shadow-lg border border-white/10">
+              <div className="mb-4 flex items-center space-x-2">
+                <BookOpen size={20} className="text-princeton-orange" />
+                <h2 className="text-xl font-bold text-princeton-white">Interests</h2>
+              </div>
               
-              <Button 
-                onClick={handleInterestsUpdate}
-                className="w-full bg-princeton-orange hover:bg-princeton-orange/90 text-black"
-                disabled={updateInterestsMutation.isPending}
-              >
-                {updateInterestsMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : 'Save Interests'}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {user?.interests && user.interests.length > 0 ? (
+                  user.interests.map((interest, index) => (
+                    <Badge key={index} className="bg-princeton-orange/70 text-black px-3 py-1 rounded-full">
+                      {interest.name.name}
+                    </Badge>
+                  ))
+                ) : (
+                  <p className="text-princeton-white/60">No interests listed</p>
+                )}
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
+            
+            {/* Clubs */}
+            <div className="bg-secondary/80 backdrop-blur rounded-2xl p-6 text-princeton-white shadow-lg border border-white/10">
+              <div className="mb-4 flex items-center space-x-2">
+                <MapPin size={20} className="text-princeton-orange" />
+                <h2 className="text-xl font-bold text-princeton-white">Clubs</h2>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                {user?.clubs && user.clubs.length > 0 ? (
+                  user.clubs.map((club, index) => (
+                    <Badge key={index} variant="outline" className="border-princeton-orange text-princeton-white px-3 py-1 rounded-full">
+                      {club.name.name}
+                    </Badge>
+                  ))
+                ) : (
+                  <p className="text-princeton-white/60">No clubs listed</p>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Edit Mode */
+          <div className="animate-fade-in">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid grid-cols-3 mb-6">
+                <TabsTrigger value="basic">Basic Info</TabsTrigger>
+                <TabsTrigger value="photos">Photos</TabsTrigger>
+                <TabsTrigger value="interests">Interests</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="basic">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-princeton-white">Name</Label>
+                    <Input 
+                      id="name" 
+                      value={name} 
+                      onChange={(e) => setName(e.target.value)} 
+                      className="bg-secondary border-princeton-orange/30 text-princeton-white"
+                      placeholder="Your name"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="bio" className="text-princeton-white">Bio</Label>
+                    <Textarea 
+                      id="bio" 
+                      value={bio} 
+                      onChange={(e) => setBio(e.target.value)} 
+                      className="bg-secondary border-princeton-orange/30 text-princeton-white min-h-[100px]"
+                      placeholder="Tell others about yourself"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="major" className="text-princeton-white">Major</Label>
+                    <Input 
+                      id="major" 
+                      value={major} 
+                      onChange={(e) => setMajor(e.target.value)} 
+                      className="bg-secondary border-princeton-orange/30 text-princeton-white"
+                      placeholder="Your major"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="classYear" className="text-princeton-white">Class Year</Label>
+                    <Select value={classYear} onValueChange={setClassYear}>
+                      <SelectTrigger className="bg-secondary border-princeton-orange/30 text-princeton-white">
+                        <SelectValue placeholder="Select your class year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2025">2025</SelectItem>
+                        <SelectItem value="2026">2026</SelectItem>
+                        <SelectItem value="2027">2027</SelectItem>
+                        <SelectItem value="2028">2028</SelectItem>
+                        <SelectItem value="Graduate">Graduate</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-princeton-white">Gender</Label>
+                    <RadioGroup value={gender} onValueChange={setGender} className="flex flex-col space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="male" id="male" />
+                        <Label htmlFor="male" className="text-princeton-white">Male</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="female" id="female" />
+                        <Label htmlFor="female" className="text-princeton-white">Female</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="non-binary" id="non-binary" />
+                        <Label htmlFor="non-binary" className="text-princeton-white">Non-binary</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="other" id="other" />
+                        <Label htmlFor="other" className="text-princeton-white">Other</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-princeton-white">Interested In</Label>
+                    <RadioGroup value={genderPreference} onValueChange={setGenderPreference} className="flex flex-col space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="male" id="pref-male" />
+                        <Label htmlFor="pref-male" className="text-princeton-white">Men</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="female" id="pref-female" />
+                        <Label htmlFor="pref-female" className="text-princeton-white">Women</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="everyone" id="pref-everyone" />
+                        <Label htmlFor="pref-everyone" className="text-princeton-white">Everyone</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-princeton-white">Dating Intention</Label>
+                    <RadioGroup value={intention} onValueChange={setIntention} className="flex flex-col space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="casual" id="casual" />
+                        <Label htmlFor="casual" className="text-princeton-white">Casual</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="serious" id="serious" />
+                        <Label htmlFor="serious" className="text-princeton-white">Serious</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-princeton-orange hover:bg-princeton-orange/90 text-black"
+                    disabled={updateProfileMutation.isPending}
+                  >
+                    {updateProfileMutation.isPending ? (
+                      <>
+                        <div className="animate-spin h-4 w-4 mr-2 border-2 border-black border-t-transparent rounded-full"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="photos">
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    {photos.map((photo, index) => (
+                      <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
+                        <img 
+                          src={photo} 
+                          alt={`Profile photo ${index + 1}`} 
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          onClick={() => handleDeletePhoto(photo)}
+                          className="absolute top-2 right-2 bg-black/50 p-2 rounded-full text-white hover:bg-red-500/80"
+                          aria-label="Delete photo"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                        
+                        {index === 0 && (
+                          <div className="absolute bottom-2 left-2 bg-princeton-orange/80 text-xs text-white px-2 py-1 rounded-md">
+                            Main Photo
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {photos.length < 6 && (
+                      <label className="aspect-square rounded-lg border-2 border-dashed border-princeton-orange/50 flex flex-col items-center justify-center cursor-pointer hover:bg-princeton-orange/10 transition-colors">
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handlePhotoUpload}
+                          disabled={isUploading}
+                        />
+                        {isUploading ? (
+                          <div className="animate-spin h-8 w-8 border-2 border-princeton-orange border-t-transparent rounded-full"></div>
+                        ) : (
+                          <>
+                            <Camera size={32} className="text-princeton-orange mb-2" />
+                            <span className="text-sm text-princeton-orange">Add Photo</span>
+                          </>
+                        )}
+                      </label>
+                    )}
+                  </div>
+                  
+                  {uploadError && (
+                    <div className="text-red-500 text-sm p-2 bg-red-500/10 rounded-lg">
+                      {uploadError}
+                    </div>
+                  )}
+                  
+                  <div className="text-sm text-princeton-white/70 p-4 bg-white/5 rounded-lg">
+                    <p>• Add up to 6 photos to show off your best self.</p>
+                    <p>• First photo will be your main profile picture.</p>
+                    <p>• Maximum file size: 5MB.</p>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="interests">
+                <div className="space-y-6">
+                  <div className="bg-secondary/30 p-4 rounded-lg text-princeton-white/90 text-sm">
+                    Select interests that represent you. These will help match you with people who share similar interests.
+                  </div>
+                  
+                  <InterestSelector 
+                    selectedInterests={selectedInterests}
+                    onChange={setSelectedInterests}
+                  />
+                  
+                  <Button 
+                    onClick={handleInterestsUpdate}
+                    className="w-full bg-princeton-orange hover:bg-princeton-orange/90 text-black"
+                    disabled={updateInterestsMutation.isPending}
+                  >
+                    {updateInterestsMutation.isPending ? (
+                      <>
+                        <div className="animate-spin h-4 w-4 mr-2 border-2 border-black border-t-transparent rounded-full"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Interests'
+                    )}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
       </main>
     </div>
   );
